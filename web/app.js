@@ -102,7 +102,7 @@ $('build').onclick=()=>busy(async()=>{
   state.result=await api('build',{inputs,keywords:$('keywords').value.split(',').map(s=>s.trim()).filter(Boolean)});state.page=0;renderResults();$('results').scrollIntoView({behavior:'smooth',block:'start'});
 });
 $('keywords').oninput=invalidate;
-$('export').onclick=()=>busy(async()=>{const blob=await api('export',{},true),url=URL.createObjectURL(blob),anchor=el('a');anchor.href=url;anchor.download=`설문대상_고객리스트_${new Date().toLocaleDateString('sv-SE')}.xlsx`;anchor.click();setTimeout(()=>URL.revokeObjectURL(url),10000);});
+$('export').onclick=()=>busy(async()=>{const blob=await api('export',{result:state.result},true),url=URL.createObjectURL(blob),anchor=el('a');anchor.href=url;anchor.download=`설문대상_고객리스트_${new Date().toLocaleDateString('sv-SE')}.xlsx`;anchor.click();setTimeout(()=>URL.revokeObjectURL(url),10000);});
 document.querySelectorAll('[data-filter]').forEach(button=>button.onclick=()=>{state.filter=button.dataset.filter;state.page=0;document.querySelectorAll('[data-filter]').forEach(b=>b.classList.toggle('active',b===button));renderResults();});
 $('search').oninput=()=>{state.page=0;renderResults();};$('prev').onclick=()=>{state.page=Math.max(0,state.page-1);renderResults();};$('next').onclick=()=>{state.page++;renderResults();};
 window.addEventListener('beforeunload',event=>{if(state.result){event.preventDefault();event.returnValue='';}});

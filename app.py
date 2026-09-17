@@ -97,6 +97,12 @@ class Handler(BaseHTTPRequestHandler):
                 self.server.result = build_result(records, payload.get('keywords'))
                 return self.send(self.server.result)
             if self.path in ('/api/approve', '/api/exclude', '/api/export'):
+                # Vercel serverless requests may land on different warm
+                # instances, so allow the client to carry the current result
+                # for stateless follow-up requests such as export.
+                request_result = payload.get('result') if isinstance(payload, dict) else None
+                if self.server.result is None and isinstance(request_result, dict):
+                    self.server.result = request_result
                 if self.server.result is None:
                     raise ValueError('먼저 목록을 생성해 주세요.')
                 if self.path == '/api/export':
