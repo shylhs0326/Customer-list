@@ -103,7 +103,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send(export_result(self.server.result), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', filename='survey_customers.xlsx')
                 if self.path == '/api/approve':
                     if payload.get('confirmed') is not True:
-                        raise ValueError('최신 정보와 구매권한 확인에 체크해 주세요.')
+                        raise ValueError('최신 정보와 담당자 직급을 확인한 뒤 체크해 주세요.')
                     customer = approve_customer(self.server.result, payload['customer_id'], payload['values'])
                     record_id = payload.get('record_id')
                     candidate = next((r for r in customer['candidates'] if r['record_id'] == record_id), None)

@@ -88,7 +88,7 @@ $('candidate').onchange=()=>{const id=$('candidate').value;state.recordId=id==='
 $('close-dialog').onclick=()=>$('review-dialog').close();
 $('review-form').onsubmit=async event=>{
   event.preventDefault();$('dialog-error').textContent='';
-  if(!$('confirm').checked){$('dialog-error').textContent='최신 정보와 구매권한 확인에 체크해 주세요.';return;}
+  if(!$('confirm').checked){$('dialog-error').textContent='최신 정보와 담당자 직급을 확인한 뒤 체크해 주세요.';return;}
   const values=Object.fromEntries(editKeys.map(k=>[k,$('edit-'+k).value]));
   await busy(async()=>{try{state.result=await api('approve',{customer_id:state.customer.customer_id,record_id:state.recordId,values,confirmed:true});$('review-dialog').close();renderResults();}catch(e){$('dialog-error').textContent=e.message;throw e;}});
 };
