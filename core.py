@@ -224,7 +224,7 @@ def approve_customer(result, customer_id, values):
         raise ValueError(' / '.join(errors))
     updated.update(status='설문 대상', manual=True, reasons=[],
                    priority=1 if address_matches(updated, result['keywords']) else 2,
-                   selection='사용자 확인: 최신 정보 및 구매권한 확인',
+                   selection='사용자 확인: 담당자 직급 및 최신 정보 확인',
                    confirmed_at=datetime.now().isoformat(timespec='seconds'))
     customer.update(updated)
     result['customers'].sort(key=lambda c: c['priority'])

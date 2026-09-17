@@ -2,6 +2,8 @@
 const {fields, autoMapping, chooseHeader, dateLabel} = FieldMapping;
 const state = {files:{},result:null,filter:'전체',page:0,busy:false,customer:null,recordId:null};
 const $ = id => document.getElementById(id);
+const confirmation = document.querySelector('#confirm')?.parentElement;
+if (confirmation) confirmation.lastChild.textContent = ' 이 담당자의 직급과 위 정보가 최신임을 확인했습니다.';
 function el(tag, text, className) { const node = document.createElement(tag); if(text!==undefined) node.textContent=text; if(className)node.className=className; return node; }
 function message(text) { $('message').textContent=text; $('message').hidden=!text; }
 async function api(path, payload, blob=false) {
