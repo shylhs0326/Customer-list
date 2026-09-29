@@ -1,14 +1,16 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "routes": [
-    {"src": "/api(?:/.*)?", "dest": "/api/index.py"},
     {"src": "/", "dest": "/web/index.html"},
     {"src": "/app.js", "dest": "/web/app.js"},
+    {"src": "/core.js", "dest": "/web/core.js"},
+    {"src": "/xlsx-adapter.js", "dest": "/web/xlsx-adapter.js"},
     {"src": "/mapping.js", "dest": "/web/mapping.js"},
     {"src": "/style.css", "dest": "/web/style.css"},
-    {"src": "/sample([12])\\.xlsx", "dest": "/api/index.py?sample=$1"}
+    {"src": "/vendor/(.*)", "dest": "/web/vendor/$1"},
+    {"src": "/sample([12])\\.xlsx", "dest": "/web/sample$1.xlsx"}
   ],
-  "functions": {
-    "api/index.py": {"maxDuration": 60}
-  }
+  "headers": [
+    {"source": "/(.*)", "headers": [{"key":"Cache-Control","value":"no-store"}]} 
+  ]
 }
