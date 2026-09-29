@@ -105,8 +105,9 @@ def latest_value(rows, key, reasons):
     return chosen[key]
 
 
-def build_result(records, keywords=None):
+def build_result(records, keywords=None, excluded_ids=None):
     keywords = DEFAULT_KEYWORDS if keywords is None else [clean(k) for k in keywords if clean(k)]
+    excluded_ids = {clean(value) for value in (excluded_ids or ()) if clean(value)}
     groups, rejected = defaultdict(list), []
     normalized = []
     for index, original in enumerate(records):
@@ -190,6 +191,9 @@ def build_result(records, keywords=None):
                                    f'2순위: {SECONDARY_TITLES[title_rank(chosen)]} / 이름·연락처·이메일 완비' if priority == 2 else
                                    '구매 담당자 확인 필요') + ' / 동일 순위 최신 행 선택', manual=False,
                         candidates=[{k: v for k, v in r.items() if k != '_date'} for r in rows])
+        if customer_id in excluded_ids:
+            customer['status'] = '설문 제외'
+            customer['reasons'] = list(dict.fromkeys(customer['reasons'] + ['제외 목록에 포함']))
         customers.append(customer)
     # A machine cannot safely belong to two customers simultaneously.
     ownership = defaultdict(set)
@@ -202,7 +206,8 @@ def build_result(records, keywords=None):
     customers.sort(key=lambda c: c['priority'])
     return dict(customers=customers, machines=machines,
                 records=[{k: v for k, v in r.items() if k != '_date'} for r in normalized],
-                rejected=[{k: v for k, v in r.items() if k != '_date'} for r in rejected], keywords=keywords)
+                rejected=[{k: v for k, v in r.items() if k != '_date'} for r in rejected],
+                keywords=keywords, excluded_ids=sorted(excluded_ids))
 
 
 def approve_customer(result, customer_id, values):

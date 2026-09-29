@@ -1,10 +1,12 @@
 from io import BytesIO
+import base64
 import json
 import threading
 import unittest
 import urllib.request
 import urllib.error
 from openpyxl import load_workbook
+from openpyxl import Workbook
 from app import SurveyServer
 from core import FIELDS
 
@@ -71,6 +73,27 @@ class ApplicationFlow(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as error:
             self.post('export', {})
         self.assertEqual(error.exception.code, 400)
+
+    def test_exclusion_upload_is_applied_to_build(self):
+        exclusion = Workbook()
+        sheet = exclusion.active
+        sheet.append(['고객번호'])
+        sheet.append(['000101'])
+        data = BytesIO()
+        exclusion.save(data)
+        info = self.post('exclusion-inspect', {
+            'name': 'exclude.xlsx',
+            'data': base64.b64encode(data.getvalue()).decode(),
+        })
+        self.assertEqual(info['customer_ids'], ['000101'])
+        self.post('demo', {})
+        mapping = {key: index for index, key in enumerate(FIELDS)}
+        result = self.post('build', {
+            'inputs': [dict(slot=s, sheet='고객정보', header=1, mapping=mapping) for s in ('1', '2')],
+            'excluded_ids': info['customer_ids'],
+        })
+        customer = next(c for c in result['customers'] if c['customer_id'] == '000101')
+        self.assertEqual(customer['status'], '설문 제외')
 
 
 if __name__ == '__main__':

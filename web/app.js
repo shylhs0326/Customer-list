@@ -1,6 +1,6 @@
 'use strict';
 const {fields, autoMapping, chooseHeader, dateLabel} = FieldMapping;
-const state = {files:{},result:null,filter:'전체',page:0,busy:false,customer:null,recordId:null};
+const state = {files:{},excludedIds:[],result:null,filter:'전체',page:0,busy:false,customer:null,recordId:null};
 const $ = id => document.getElementById(id);
 const confirmation = document.querySelector('#confirm')?.parentElement;
 if (confirmation) confirmation.lastChild.textContent = ' 이 담당자의 직급과 위 정보가 최신임을 확인했습니다.';
@@ -61,13 +61,13 @@ function renderResults() {
   $('results').hidden=false;$('empty').hidden=true;
   $('total').textContent=result.customers.length;
   const ready=result.customers.filter(c=>c.status==='설문 대상').length;
-  $('ready').textContent=ready;$('review').textContent=result.customers.length-ready;$('rejected').textContent=result.rejected.length;
+  $('ready').textContent=ready;$('review').textContent=result.customers.filter(c=>c.status==='확인 필요').length;$('excluded').textContent=result.customers.filter(c=>c.status==='설문 제외').length;$('rejected').textContent=result.rejected.length;
   const query=$('search').value.toLowerCase();
   const filtered=result.customers.filter(c=>(state.filter==='전체'||c.status===state.filter)&&[c.customer_id,c.company,c.name].join(' ').toLowerCase().includes(query));
   state.page=Math.min(state.page,Math.max(0,Math.ceil(filtered.length/50)-1));
   $('rows').replaceChildren();
   filtered.slice(state.page*50,(state.page+1)*50).forEach(c=>{
-    const row=el('tr'),status=el('td');status.append(el('span',c.status,'badge'+(c.status==='확인 필요'?' review':'')));status.append(el('small',c.priority < 3 ? c.priority+'순위' : '확인 필요'));row.append(status);
+    const row=el('tr'),status=el('td');status.append(el('span',c.status,'badge'+(c.status==='확인 필요'?' review':c.status==='설문 제외'?' excluded':'')));status.append(el('small',c.status==='설문 제외'?'제외':c.priority < 3 ? c.priority+'순위' : '확인 필요'));row.append(status);
     [[c.customer_id,c.company],[[c.name||'담당자 미확인',c.position].filter(Boolean).join(' · '),c.address],[['전화: '+(c.phone||'—'),'휴대폰: '+(c.mobile||'—')].join(' / '),c.email||'이메일 없음']].forEach(values=>{const td=el('td',values[0]);td.append(el('small',values[1]));td.className='contact-detail';row.append(td);});
     row.append(el('td',String(c.machine?c.machine.split('\n').length:0)),el('td',c.region||'—'),el('td',c.reasons.join(' / ')||(c.manual?'사용자 확인 완료':'최신 정보 기준 선정'),'reason'));
     const action=el('td'),button=el('button','검토','secondary');button.onclick=()=>openReview(c);action.append(button);row.append(action);$('rows').append(row);
@@ -95,11 +95,16 @@ $('review-form').onsubmit=async event=>{
   await busy(async()=>{try{state.result=await api('approve',{customer_id:state.customer.customer_id,record_id:state.recordId,values,confirmed:true});$('review-dialog').close();renderResults();}catch(e){$('dialog-error').textContent=e.message;throw e;}});
 };
 $('exclude').onclick=()=>busy(async()=>{state.result=await api('exclude',{customer_id:state.customer.customer_id});$('review-dialog').close();renderResults();});
+$('exclusion-file').onchange=()=>busy(async()=>{
+  const input=$('exclusion-file').files[0]; if(!input)return; if(input.size>30*1024*1024)throw new Error('파일당 최대 30MB까지 지원합니다.');
+  const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=()=>reject(new Error('제외 파일을 읽지 못했습니다.'));reader.readAsDataURL(input);});
+  const info=await api('exclusion-inspect',{name:input.name,data}); state.excludedIds=info.customer_ids; $('exclusion-summary').textContent=`${info.name} · ${info.count}개 고객번호를 제외합니다.`; invalidate();
+});
 $('demo').onclick=()=>busy(async()=>{invalidate();const files=await api('demo',{});files.forEach(f=>initializeFile(f.slot,f,f.name));});
 $('build').onclick=()=>busy(async()=>{
   invalidate();if(Object.keys(state.files).length!==2)throw new Error('엑셀 파일 2개를 먼저 선택해 주세요.');
   const inputs=Object.entries(state.files).map(([slot,f])=>({slot,sheet:f.sheet,header:f.header,mapping:f.mapping}));
-  state.result=await api('build',{inputs,keywords:$('keywords').value.split(',').map(s=>s.trim()).filter(Boolean)});state.page=0;renderResults();$('results').scrollIntoView({behavior:'smooth',block:'start'});
+  state.result=await api('build',{inputs,keywords:$('keywords').value.split(',').map(s=>s.trim()).filter(Boolean),excluded_ids:state.excludedIds});state.page=0;renderResults();$('results').scrollIntoView({behavior:'smooth',block:'start'});
 });
 $('keywords').oninput=invalidate;
 $('export').onclick=()=>busy(async()=>{const blob=await api('export',{result:state.result},true),url=URL.createObjectURL(blob),anchor=el('a');anchor.href=url;anchor.download=`설문대상_고객리스트_${new Date().toLocaleDateString('sv-SE')}.xlsx`;anchor.click();setTimeout(()=>URL.revokeObjectURL(url),10000);});

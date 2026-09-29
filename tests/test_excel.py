@@ -39,7 +39,7 @@ class ExcelBoundary(unittest.TestCase):
         result = build_result([dict(customer_id='001', company='=1+1', name='담당')])
         output = export_result(result)
         book = load_workbook(BytesIO(output), data_only=False)
-        self.assertEqual(book.sheetnames, ['설문 대상', '확인 필요', '설치 기계', '원본 통합'])
+        self.assertEqual(book.sheetnames, ['설문 대상', '설문 제외', '확인 필요', '설치 기계', '원본 통합'])
         self.assertEqual(book['확인 필요']['D2'].value, '=1+1')
         self.assertEqual(book['확인 필요']['D2'].data_type, 's')
 

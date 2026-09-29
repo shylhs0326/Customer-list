@@ -8,7 +8,7 @@ import threading
 import webbrowser
 import argparse
 from core import build_result, approve_customer
-from excel_io import inspect_book, read_records, export_result, sample_book
+from excel_io import inspect_book, read_records, read_exclusion_ids, export_result, sample_book
 
 ROOT = Path(__file__).resolve().parent
 
@@ -76,6 +76,13 @@ class Handler(BaseHTTPRequestHandler):
                 info = inspect_book(data)
                 self.server.files[slot] = (name, data)
                 return self.send(info)
+            if self.path == '/api/exclusion-inspect':
+                name = Path(payload['name']).name
+                if not name.lower().endswith(('.xlsx', '.xlsm')):
+                    raise ValueError('.xlsx 또는 .xlsm 파일만 지원합니다. .xls는 Excel에서 .xlsx로 저장해 주세요.')
+                data = base64.b64decode(payload['data'], validate=True)
+                customer_ids = read_exclusion_ids(data)
+                return self.send(dict(name=name, customer_ids=customer_ids, count=len(customer_ids)))
             if self.path == '/api/demo':
                 self.server.result = None
                 response = []
@@ -94,7 +101,7 @@ class Handler(BaseHTTPRequestHandler):
                 for settings in payload['inputs']:
                     name, data = self.server.files[str(settings['slot'])]
                     records.extend(read_records(data, settings['sheet'], settings['header'], settings['mapping'], name))
-                self.server.result = build_result(records, payload.get('keywords'))
+                self.server.result = build_result(records, payload.get('keywords'), payload.get('excluded_ids'))
                 return self.send(self.server.result)
             if self.path in ('/api/approve', '/api/exclude', '/api/export'):
                 # Vercel serverless requests may land on different warm
