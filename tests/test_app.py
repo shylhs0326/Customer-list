@@ -85,12 +85,12 @@ class ApplicationFlow(unittest.TestCase):
             'name': 'exclude.xlsx',
             'data': base64.b64encode(data.getvalue()).decode(),
         })
-        self.assertEqual(info['customer_ids'], ['000101'])
+        self.assertEqual([row['customer_id'] for row in info['targets']], ['000101'])
         self.post('demo', {})
         mapping = {key: index for index, key in enumerate(FIELDS)}
         result = self.post('build', {
             'inputs': [dict(slot=s, sheet='고객정보', header=1, mapping=mapping) for s in ('1', '2')],
-            'excluded_ids': info['customer_ids'],
+            'excluded_targets': info['targets'],
         })
         customer = next(c for c in result['customers'] if c['customer_id'] == '000101')
         self.assertEqual(customer['status'], '설문 제외')

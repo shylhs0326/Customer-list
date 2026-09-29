@@ -105,9 +105,14 @@ def latest_value(rows, key, reasons):
     return chosen[key]
 
 
-def build_result(records, keywords=None, excluded_ids=None):
+def build_result(records, keywords=None, excluded_ids=None, excluded_targets=None):
     keywords = DEFAULT_KEYWORDS if keywords is None else [clean(k) for k in keywords if clean(k)]
-    excluded_ids = {clean(value) for value in (excluded_ids or ()) if clean(value)}
+    excluded_targets = excluded_targets or []
+    exclusion_reasons = {
+        clean(row.get('customer_id')): clean(row.get('reason'))
+        for row in excluded_targets if clean(row.get('customer_id'))
+    }
+    excluded_ids = {clean(value) for value in (excluded_ids or ()) if clean(value)} | set(exclusion_reasons)
     groups, rejected = defaultdict(list), []
     normalized = []
     for index, original in enumerate(records):
@@ -193,7 +198,7 @@ def build_result(records, keywords=None, excluded_ids=None):
                         candidates=[{k: v for k, v in r.items() if k != '_date'} for r in rows])
         if customer_id in excluded_ids:
             customer['status'] = '설문 제외'
-            customer['reasons'] = list(dict.fromkeys(customer['reasons'] + ['제외 목록에 포함']))
+            customer['reasons'] = list(dict.fromkeys(customer['reasons'] + [exclusion_reasons.get(customer_id) or '제외 목록에 포함']))
         customers.append(customer)
     # A machine cannot safely belong to two customers simultaneously.
     ownership = defaultdict(set)

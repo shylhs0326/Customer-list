@@ -1,6 +1,6 @@
 'use strict';
 const {fields, autoMapping, chooseHeader, dateLabel} = FieldMapping;
-const state = {files:{},excludedIds:[],result:null,filter:'전체',page:0,busy:false,customer:null,recordId:null};
+const state = {files:{},excludedTargets:[],result:null,filter:'전체',page:0,busy:false,customer:null,recordId:null};
 const $ = id => document.getElementById(id);
 const confirmation = document.querySelector('#confirm')?.parentElement;
 if (confirmation) confirmation.lastChild.textContent = ' 이 담당자의 직급과 위 정보가 최신임을 확인했습니다.';
@@ -98,13 +98,13 @@ $('exclude').onclick=()=>busy(async()=>{state.result=await api('exclude',{custom
 $('exclusion-file').onchange=()=>busy(async()=>{
   const input=$('exclusion-file').files[0]; if(!input)return; if(input.size>30*1024*1024)throw new Error('파일당 최대 30MB까지 지원합니다.');
   const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=()=>reject(new Error('제외 파일을 읽지 못했습니다.'));reader.readAsDataURL(input);});
-  const info=await api('exclusion-inspect',{name:input.name,data}); state.excludedIds=info.customer_ids; $('exclusion-summary').textContent=`${info.name} · ${info.count}개 고객번호를 제외합니다.`; invalidate();
+  const info=await api('exclusion-inspect',{name:input.name,data}); state.excludedTargets=info.targets; $('exclusion-summary').textContent=`${info.name} · ${info.count}개 고객번호를 제외합니다.`; invalidate();
 });
 $('demo').onclick=()=>busy(async()=>{invalidate();const files=await api('demo',{});files.forEach(f=>initializeFile(f.slot,f,f.name));});
 $('build').onclick=()=>busy(async()=>{
   invalidate();if(Object.keys(state.files).length!==2)throw new Error('엑셀 파일 2개를 먼저 선택해 주세요.');
   const inputs=Object.entries(state.files).map(([slot,f])=>({slot,sheet:f.sheet,header:f.header,mapping:f.mapping}));
-  state.result=await api('build',{inputs,keywords:$('keywords').value.split(',').map(s=>s.trim()).filter(Boolean),excluded_ids:state.excludedIds});state.page=0;renderResults();$('results').scrollIntoView({behavior:'smooth',block:'start'});
+  state.result=await api('build',{inputs,keywords:$('keywords').value.split(',').map(s=>s.trim()).filter(Boolean),excluded_targets:state.excludedTargets});state.page=0;renderResults();$('results').scrollIntoView({behavior:'smooth',block:'start'});
 });
 $('keywords').oninput=invalidate;
 $('export').onclick=()=>busy(async()=>{const blob=await api('export',{result:state.result},true),url=URL.createObjectURL(blob),anchor=el('a');anchor.href=url;anchor.download=`설문대상_고객리스트_${new Date().toLocaleDateString('sv-SE')}.xlsx`;anchor.click();setTimeout(()=>URL.revokeObjectURL(url),10000);});

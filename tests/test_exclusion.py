@@ -4,7 +4,7 @@ from io import BytesIO
 from openpyxl import Workbook, load_workbook
 
 from core import build_result
-from excel_io import export_result, read_exclusion_ids
+from excel_io import export_result, read_exclusion_ids, read_exclusion_rows
 
 
 def record(customer_id='C-001'):
@@ -30,6 +30,18 @@ class ExclusionTests(unittest.TestCase):
 
         self.assertEqual(read_exclusion_ids(output.getvalue()), ['000101', '000102'])
 
+    def test_exclusion_workbook_reads_name_number_and_reason(self):
+        book = Workbook()
+        sheet = book.active
+        sheet.append(['고객명', '고객번호', '제외사유'])
+        sheet.append(['가상회사', '000101', '계약 종료'])
+        output = BytesIO()
+        book.save(output)
+
+        self.assertEqual(read_exclusion_rows(output.getvalue()), [
+            {'company': '가상회사', 'customer_id': '000101', 'reason': '계약 종료'}
+        ])
+
     def test_headerless_exclusion_workbook_uses_first_column(self):
         book = Workbook()
         sheet = book.active
@@ -50,6 +62,7 @@ class ExclusionTests(unittest.TestCase):
         saved = load_workbook(BytesIO(export_result(result)), read_only=True)
         self.assertIn('설문 제외', saved.sheetnames)
         self.assertEqual(saved['설문 제외'].max_row, 2)
+        self.assertEqual([cell.value for cell in saved['설문 제외'][1]], ['고객명', '고객번호', '제외사유'])
 
     def test_customer_id_not_in_exclusion_list_keeps_normal_selection(self):
         result = build_result([record()], excluded_ids={'C-999'})

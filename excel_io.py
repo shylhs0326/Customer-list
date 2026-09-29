@@ -103,35 +103,49 @@ def read_records(data, sheet_name, header_row, mapping, source):
         formulas.close()
 
 
-def read_exclusion_ids(data):
-    """Read customer IDs from the first sheet of a simple exclusion workbook."""
+def read_exclusion_rows(data):
+    """Read exclusion metadata from the first sheet of an exclusion workbook."""
     book = open_book(data)
     try:
         sheet = book[book.sheetnames[0]]
         if sheet.max_row and sheet.max_row > 100001:
             raise ValueError('제외 목록은 100,000행 이하만 지원합니다.')
-        aliases = {'고객번호', 'customerid', 'customer_id', 'customer no', 'customer number'}
-        column = 0
+        aliases = {
+            'company': {'고객명', '고객사명', 'company', 'companyname'},
+            'customer_id': {'고객번호', 'customerid', 'customer_id', 'customer no', 'customer number'},
+            'reason': {'제외사유', '제외이유', 'reason', 'exclusionreason'},
+        }
+        columns = {}
         start_row = 1
         for row_number, row in enumerate(sheet.iter_rows(max_row=min(sheet.max_row or 1, 30)), 1):
             for column_number, cell in enumerate(row):
                 normalized = re.sub(r'[\s_\-]', '', cell_text(cell)).lower()
-                if normalized in {re.sub(r'[\s_\-]', '', alias).lower() for alias in aliases}:
-                    column, start_row = column_number, row_number + 1
-                    break
-            else:
-                continue
-            break
-        ids = []
-        for row in sheet.iter_rows(min_row=start_row, min_col=column + 1, max_col=column + 1):
-            value = cell_text(row[0])
-            if value:
-                ids.append(value)
-        if not ids:
+                for key, names in aliases.items():
+                    if normalized in {re.sub(r'[\s_\-]', '', alias).lower() for alias in names}:
+                        columns[key] = column_number
+            if 'customer_id' in columns:
+                start_row = row_number + 1
+                break
+        customer_column = columns.get('customer_id', 0)
+        rows = []
+        for row in sheet.iter_rows(min_row=start_row):
+            customer_id = cell_text(row[customer_column]) if customer_column < len(row) else ''
+            if customer_id:
+                company = cell_text(row[columns['company']]) if 'company' in columns and columns['company'] < len(row) else ''
+                reason = cell_text(row[columns['reason']]) if 'reason' in columns and columns['reason'] < len(row) else ''
+                rows.append({'company': company, 'customer_id': customer_id, 'reason': reason})
+        if not rows:
             raise ValueError('제외 목록에서 고객번호를 찾지 못했습니다.')
-        return sorted(set(ids))
+        unique = {}
+        for row in rows:
+            unique[row['customer_id']] = row
+        return list(unique.values())
     finally:
         book.close()
+
+
+def read_exclusion_ids(data):
+    return [row['customer_id'] for row in read_exclusion_rows(data)]
 
 
 def add_table(book, name, columns, rows):
@@ -182,7 +196,7 @@ def export_result(result):
     excluded = [c for c in result['customers'] if c['status'] == '설문 제외']
     reviews = [c for c in result['customers'] if c['status'] not in ('설문 대상', '설문 제외')]
     reviews += [dict(r, reasons=[r['reason']]) for r in result['rejected']]
-    add_table(book, '설문 제외', cols + [('reasons', '제외 사유')] + extras, excluded)
+    add_table(book, '설문 제외', [('company', '고객명'), ('customer_id', '고객번호'), ('reasons', '제외사유')], excluded)
     add_table(book, '확인 필요', cols + [('reasons', '확인 사유')] + extras, reviews)
     add_table(book, '설치 기계', [(k, FIELDS[k]) for k in ('customer_id', 'company', 'machine', 'model')] + [('source', '출처')], result['machines'])
     add_table(book, '원본 통합', [(k, '성명' if k == 'name' else v) for k, v in FIELDS.items()] + [('source', '출처'), ('warnings', '읽기 주의사항')], result['records'])
